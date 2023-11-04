@@ -2,7 +2,9 @@
 #include <SDL_events.h>
 #include <SDL_render.h>
 #include <SDL_video.h>
+#include <SDL_mixer.h>
 
+#include "getPath.h"
 #include "color.h"
 #include "raycaster.h"
 #include "imageloader.h"
@@ -35,25 +37,48 @@ void draw_hand (std::string image) {
 
 int main(int argc, char* argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
+
     ImageLoader::init();
     std::clock_t start_time = std::clock();
 
     window = SDL_CreateWindow("DOOM", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    ImageLoader::loadImage("0", "C:\\Users\\caste\\OneDrive\\Documentos\\Universidad\\semestre6\\graficosxcomputador\\DoomClone\\assets\\Map1\\SP_DUDE1.png" );
-    ImageLoader::loadImage("1", "C:\\Users\\caste\\OneDrive\\Documentos\\Universidad\\semestre6\\graficosxcomputador\\DoomClone\\assets\\Map1\\STONE2.png" );
-    ImageLoader::loadImage("2", "C:\\Users\\caste\\OneDrive\\Documentos\\Universidad\\semestre6\\graficosxcomputador\\DoomClone\\assets\\Map1\\STONGARG.png" );
-    ImageLoader::loadImage("3", "C:\\Users\\caste\\OneDrive\\Documentos\\Universidad\\semestre6\\graficosxcomputador\\DoomClone\\assets\\Map1\\SW1STARG.png" );
-    ImageLoader::loadImage("p", "C:\\Users\\caste\\OneDrive\\Documentos\\Universidad\\semestre6\\graficosxcomputador\\DoomClone\\assets\\player\\doomHand.png" );
-    ImageLoader::loadImage("e1", "C:\\Users\\caste\\OneDrive\\Documentos\\Universidad\\semestre6\\graficosxcomputador\\DoomClone\\assets\\enemies\\e1.png");
-    ImageLoader::loadImage("ha", "C:\\Users\\caste\\OneDrive\\Documentos\\Universidad\\semestre6\\graficosxcomputador\\DoomClone\\assets\\player\\handAttack.png");
+    ImageLoader::loadImage("0", getCharFileName("assets\\Map1\\SP_DUDE1.png"));
+    ImageLoader::loadImage("1", getCharFileName("assets\\Map1\\STONE2.png"));
+    ImageLoader::loadImage("2", getCharFileName("assets\\Map1\\STONGARG.png"));
+    ImageLoader::loadImage("3", getCharFileName("assets\\Map1\\SW1STARG.png"));
+    ImageLoader::loadImage("p", getCharFileName("assets\\player\\doomHand.png"));
+    ImageLoader::loadImage("e1", getCharFileName("assets\\enemies\\e1.png"));
+    ImageLoader::loadImage("ha", getCharFileName("assets\\player\\handAttack.png"));
+    ImageLoader::loadImage("pMM" , getCharFileName("assets\\player\\doomGuy.png"));
 
     Raycaster r = { renderer };
-    r.load_map("C:\\Users\\caste\\OneDrive\\Documentos\\Universidad\\semestre6\\graficosxcomputador\\DoomClone\\assets\\map.txt");
+    r.load_map(getCharFileName("assets\\map.txt"));
 
     Uint32 frameStart, frameTime;
     std::string title = "FPS: ";
+
+    if (Mix_Init(MIX_INIT_MP3) < 0) {
+        std::cout << "Error al inicializar SDL_mixer: " << Mix_GetError() << std::endl;
+    }
+
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        std::cout << "Error al inicializar SDL_mixer: " << Mix_GetError() << std::endl;
+    }
+
+    Mix_Music* music = Mix_LoadMUS(getCharFileName("assets\\sound\\doom.mp3"));
+
+    if (music == nullptr) {
+        // Maneja el error de carga de música
+        std::cout << "Error al cargar la musica: " << Mix_GetError() << std::endl;
+    }
+
+    if (Mix_PlayMusic(music, -1) == -1) {
+        // Maneja el error de reproducción de música
+        std::cout << "Error al reproducir la musica: " << Mix_GetError() << std::endl;
+    }
+
 
     int speed = 10;
     bool running = true;
@@ -68,6 +93,10 @@ int main(int argc, char* argv[]) {
                 break;
             }
             if (event.type == SDL_KEYDOWN) {
+                bool collision = false;
+                float newPlayerX = r.player.x;
+                float newPlayerY = r.player.y;
+                int i, j;
                 switch(event.key.keysym.sym ){
                     case SDLK_LEFT:
                         r.player.a += 3.14/25;
@@ -76,12 +105,34 @@ int main(int argc, char* argv[]) {
                         r.player.a -= 3.14/25;
                         break;
                     case SDLK_UP:
-                        r.player.x += speed * cos(r.player.a);
-                        r.player.y += speed * sin(r.player.a);
+                        // Realiza el cálculo de nueva posición deseada
+                        newPlayerX = r.player.x + speed * cos(r.player.a);
+                        newPlayerY = r.player.y + speed * sin(r.player.a);
+
+                        // Convierte las coordenadas a índices de matriz
+                        i = static_cast<int>(newPlayerX / BLOCK);
+                        j = static_cast<int>(newPlayerY / BLOCK);
+
+                        // Verifica si la nueva posición colisiona con una pared en el mapa
+                        if (map[j][i] == ' ') {
+                            r.player.x = newPlayerX;
+                            r.player.y = newPlayerY;
+                        }
                         break;
                     case SDLK_DOWN:
-                        r.player.x -= speed * cos(r.player.a);
-                        r.player.y -= speed * sin(r.player.a);
+                        // Realiza el cálculo de nueva posición deseada
+                        newPlayerX = r.player.x - speed * cos(r.player.a);
+                        newPlayerY = r.player.y - speed * sin(r.player.a);
+
+                        // Convierte las coordenadas a índices de matriz
+                        i = static_cast<int>(newPlayerX / BLOCK);
+                        j = static_cast<int>(newPlayerY / BLOCK);
+
+                        // Verifica si la nueva posición colisiona con una pared en el mapa
+                        if (map[j][i] == ' ') {
+                            r.player.x = newPlayerX;
+                            r.player.y = newPlayerY;
+                        }
                         break;
                     case SDLK_a:
                         r.player.a += 3.14/25;
@@ -90,12 +141,34 @@ int main(int argc, char* argv[]) {
                         r.player.a -= 3.14/25;
                         break;
                     case SDLK_w:
-                        r.player.x += speed * cos(r.player.a);
-                        r.player.y += speed * sin(r.player.a);
+                        // Realiza el cálculo de nueva posición deseada
+                        newPlayerX = r.player.x + speed * cos(r.player.a);
+                        newPlayerY = r.player.y + speed * sin(r.player.a);
+
+                        // Convierte las coordenadas a índices de matriz
+                        i = static_cast<int>(newPlayerX / BLOCK);
+                        j = static_cast<int>(newPlayerY / BLOCK);
+
+                        // Verifica si la nueva posición colisiona con una pared en el mapa
+                        if (map[j][i] == ' ') {
+                            r.player.x = newPlayerX;
+                            r.player.y = newPlayerY;
+                        }
                         break;
                     case SDLK_s:
-                        r.player.x -= speed * cos(r.player.a);
-                        r.player.y -= speed * sin(r.player.a);
+                        // Realiza el cálculo de nueva posición deseada
+                        newPlayerX = r.player.x - speed * cos(r.player.a);
+                        newPlayerY = r.player.y - speed * sin(r.player.a);
+
+                        // Convierte las coordenadas a índices de matriz
+                        i = static_cast<int>(newPlayerX / BLOCK);
+                        j = static_cast<int>(newPlayerY / BLOCK);
+
+                        // Verifica si la nueva posición colisiona con una pared en el mapa
+                        if (map[j][i] == ' ') {
+                            r.player.x = newPlayerX;
+                            r.player.y = newPlayerY;
+                        }
                         break;
                     case SDLK_SPACE:
                         r.player.attack = true;
@@ -108,7 +181,6 @@ int main(int argc, char* argv[]) {
 
         clear();
         draw_floor();
-
         r.render();
 
         if (r.player.attack) {

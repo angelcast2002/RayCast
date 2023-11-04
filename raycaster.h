@@ -43,6 +43,17 @@ struct Enemy {
 
 std::vector<Enemy> enemies;
 
+// Define las dimensiones del minimapa y su posición
+int MINIMAP_WIDTH = 200;
+int MINIMAP_HEIGHT = 200;
+int MINIMAP_X = (SCREEN_WIDTH - MINIMAP_WIDTH) / 2;
+int MINIMAP_Y = 0;
+
+// Calcula el factor de escala
+float SCALE_X = static_cast<float>(MINIMAP_WIDTH) / SCREEN_WIDTH;
+float SCALE_Y = static_cast<float>(MINIMAP_HEIGHT) / SCREEN_HEIGHT;
+std::vector<std::string> map;
+
 class Raycaster {
 public:
     Raycaster(SDL_Renderer* renderer)
@@ -84,6 +95,20 @@ public:
                 SDL_RenderDrawPoint(renderer, cx, cy);
             }
         }
+    }
+
+    void draw_bcMiniMap(){
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_Rect rect = { MINIMAP_X, MINIMAP_Y, MINIMAP_WIDTH, MINIMAP_HEIGHT };
+        SDL_RenderFillRect(renderer, &rect);
+    }
+
+    void playerInMiniMap(int playerX, int playerY) {
+        // Calcula las coordenadas en el minimapa
+        int minimapX = MINIMAP_X + static_cast<int>(playerX * SCALE_X);
+        int minimapY = MINIMAP_Y + static_cast<int>(playerY * SCALE_Y);
+
+        ImageLoader::render(renderer, "pMM", minimapX, minimapY, static_cast<int>(BLOCK * SCALE_X), static_cast<int>(BLOCK * SCALE_Y));
     }
 
     void draw_enemy(Enemy enemy) {
@@ -159,8 +184,21 @@ public:
     }
 
     void render() {
-        /*
+        // 3D
+        for (int i = 0; i < SCREEN_WIDTH; i++ ) {
+            double a = player.a + player.fov / 2.0 - player.fov * i / SCREEN_WIDTH;
+            Impact impact = cast_ray(a);
+            float d = impact.d;
+
+            int x = i;
+            float h = static_cast<float>(SCREEN_HEIGHT)/static_cast<float>(d * cos( a - player.a )) * static_cast<float>(scale);
+            draw_stake(x, h, impact);
+        }
+
         // 2D
+        draw_bcMiniMap();
+        playerInMiniMap(player.x, player.y);
+
         for (int x = 0; x < SCREEN_WIDTH; x += BLOCK) {
             for (int y = 0; y < SCREEN_HEIGHT; y += BLOCK) {
                 int i = static_cast<int>(x / BLOCK);
@@ -169,41 +207,23 @@ public:
                 if (map[j][i] != ' ') {
                     std::string mapHit;
                     mapHit = map[j][i];
-                    Color c = Color(255, 0, 0);
-                    rect(x, y, mapHit);
+
+                    // Calcula las coordenadas en el minimapa
+                    int minimapX = MINIMAP_X + static_cast<int>(x * SCALE_X);
+                    int minimapY = MINIMAP_Y + static_cast<int>(y * SCALE_Y);
+
+                    // Utiliza la textura de la pared para representar el bloque en el minimapa
+                    ImageLoader::render(renderer, mapHit, minimapX, minimapY, static_cast<int>(BLOCK * SCALE_X), static_cast<int>(BLOCK * SCALE_Y));
                 }
             }
         }
-
+        /*
         for (int i  = 1; i < SCREEN_HEIGHT; i++) {
             float a = player.a + player.fov / 2 - player.fov * i / SCREEN_HEIGHT;
             cast_ray(a);
         }
         */
 
-        // 3D
-        for (int i = 0; i < SCREEN_WIDTH; i++ ) {
-            double a = player.a + player.fov / 2.0 - player.fov * i / SCREEN_WIDTH;
-            Impact impact = cast_ray(a);
-            float d = impact.d;
-
-            if (d < 10) {
-                if (cos(a) > 0) {
-                    player.x += 10 * cos(a);
-                } else {
-                    player.x -= 10 * cos(a);
-                }
-                if (sin(a) > 0) {
-                    player.y += 10 * sin(a);
-                } else {
-                    player.y -= 10 * sin(a);
-                }
-            }
-
-            int x = i;
-            float h = static_cast<float>(SCREEN_HEIGHT)/static_cast<float>(d * cos( a - player.a )) * static_cast<float>(scale);
-            draw_stake(x, h, impact);
-        }
 
         /*for (Enemy enemy : enemies) {
             draw_enemy(enemy);
@@ -213,6 +233,5 @@ Player player;
 private:
     int scale;
     SDL_Renderer* renderer;
-    std::vector<std::string> map;
     int tsize;
 };

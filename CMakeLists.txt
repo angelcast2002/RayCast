@@ -9,10 +9,16 @@ set(SDL2_LIB_DIR C:/Users/caste/OneDrive/Documentos/SDL2-2.28.1/lib/x64)
 include_directories(${SDL2_INCLUDE_DIR})
 link_directories(${SDL2_LIB_DIR})
 find_package(SDL2_image CONFIG REQUIRED)
+find_package(SDL2_mixer CONFIG REQUIRED)
+find_package(SFML COMPONENTS system window graphics CONFIG REQUIRED)
 
 add_executable(DoomClone main.cpp
         color.h
         raycaster.h
-        imageloader.h)
+        imageloader.h
+        getPath.h)
 
-target_link_libraries(${PROJECT_NAME} SDL2main SDL2 $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image>,SDL2_image::SDL2_image,SDL2_image::SDL2_image-static>)
+target_link_libraries(${PROJECT_NAME} SDL2main SDL2
+        $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image>,SDL2_image::SDL2_image,SDL2_image::SDL2_image-static>
+        $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer>,SDL2_mixer::SDL2_mixer,SDL2_mixer::SDL2_mixer-static>
+        sfml-system sfml-network sfml-graphics sfml-window)
