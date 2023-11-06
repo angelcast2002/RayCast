@@ -1,5 +1,6 @@
 #include <string>
 #include <filesystem>
+#include <cstring>
 
 std::string getCurrentPath() {
     return std::filesystem::current_path().string();
