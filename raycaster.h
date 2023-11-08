@@ -19,6 +19,8 @@ const int MAP_HEIGHT = 20;
 const int BLOCK = 30;
 const int SCREEN_WIDTH = MAP_WIDTH * BLOCK;
 const int SCREEN_HEIGHT = MAP_HEIGHT * BLOCK;
+const float SCREEN_WIDTH_2 = SCREEN_WIDTH / 2.0f;
+const float SCREEN_HEIGHT_2 = SCREEN_HEIGHT / 2.0f;
 
 
 struct Player {
@@ -59,8 +61,8 @@ public:
     Raycaster(SDL_Renderer* renderer)
             : renderer(renderer) {
 
-        player.x = BLOCK + BLOCK / 2;
-        player.y = BLOCK + BLOCK / 2;
+        player.x = BLOCK + BLOCK / 2.0f;
+        player.y = BLOCK + BLOCK / 2.0f;
 
         player.a = M_PI / 4.0f;
         player.fov = M_PI / 3.0f;
@@ -116,8 +118,8 @@ public:
         float enemy_d = sqrt(pow(player.x - enemy.x, 2) + pow(player.y - enemy.y, 2));
         int enemy_size = (SCREEN_HEIGHT/enemy_d) * scale;
 
-        int enemy_x = (enemy_a - player.a) * (SCREEN_WIDTH / player.fov) + SCREEN_HEIGHT / 2.0f - enemy_size / 2.0f;
-        int enemy_y = (SCREEN_HEIGHT / 2.0f) - enemy_size / 2.0f;
+        int enemy_x = (enemy_a - player.a) * (SCREEN_WIDTH / player.fov) + SCREEN_HEIGHT_2 - enemy_size / 2.0f;
+        int enemy_y = (SCREEN_HEIGHT_2) - enemy_size / 2.0f;
 
         for(int x = enemy_x; x < enemy_x + enemy_size; x++) {
             for(int y = enemy_y; y < enemy_y + enemy_size; y++) {
@@ -171,8 +173,9 @@ public:
         return Impact{d, mapHit, tx};
     }
 
+
     void draw_stake(int x, float h, Impact i) {
-        float start = SCREEN_HEIGHT/2.0f - h/2.0f;
+        float start = SCREEN_HEIGHT_2 - h/2.0f;
         float end = start + h;
 
         for (int y = start; y < end; y++) {

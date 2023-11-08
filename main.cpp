@@ -4,24 +4,21 @@
 #include <SDL_video.h>
 #include <SDL_mixer.h>
 #include <SDL_ttf.h>
-#include <fmod.hpp>
 
 #include "color.h"
 #include "raycaster.h"
 #include "imageloader.h"
 #include <ctime>
 #include <sstream>
-#include <list>
 #include "map.h"
 #include <iostream>
-#include <chrono>
-#include <thread>
 
 SDL_Window* window;
 SDL_Renderer* renderer;
 TTF_Font* font;
 
 std::vector<Map> maps;
+Color w = { 255, 255, 255, 255 };
 
 void clear () {
     // sky color
@@ -44,8 +41,7 @@ void draw_hand (std::string image) {
 }
 
 bool loadFont() {
-    font = TTF_OpenFont(R"(..\assets\font\DooM.ttf)"
-            , 24); // Carga una fuente TrueType
+    font = TTF_OpenFont(R"(..\assets\font\DooM.ttf)", 25); // Carga una fuente TrueType
     if (!font) {
         std::cerr << "Error al cargar la fuente: " << TTF_GetError() << std::endl;
         return false;
@@ -53,17 +49,24 @@ bool loadFont() {
     return true;
 }
 
-void drawText(const std::string& text, int x, int y) {
-    SDL_Color textColor = { 255, 255, 255 }; // Color del texto (blanco en este caso)
-    SDL_Surface* textSurface = TTF_RenderText_Blended(font, text.c_str(), textColor);
+void drawText(const char* text, int x, int y, Color color){
+    // Dentro de este bucle, puedes renderizar elementos de bienvenida (texto, imágenes, etc.).
+    // Usar SDL_RenderCopy y SDL_RenderPresent para mostrar elementos gráficos.
+
+    // Puedes utilizar TTF_RenderText_Solid para renderizar texto con SDL_ttf.
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, text, { color.r, color.g, color.b});
     SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
 
-    SDL_Rect destRect = { x, y, textSurface->w, textSurface->h };
+    // Define la posición del texto en la pantalla.
+    SDL_Rect textRect;
+    textRect.x = x;
+    textRect.y = y;
+    textRect.w = textSurface->w;
+    textRect.h = textSurface->h;
 
-    SDL_RenderCopy(renderer, textTexture, NULL, &destRect);
-
-    SDL_FreeSurface(textSurface);
-    SDL_DestroyTexture(textTexture);
+    // Renderiza el texto en la pantalla.
+    SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+    SDL_RenderPresent(renderer);
 }
 
 void loadEffect(const char* path) {
@@ -82,7 +85,7 @@ void loadEffect(const char* path) {
     }
 }
 
-void loadMusic(const char* path) {
+Mix_Chunk* loadMusic(const char* path) {
     // Cargar un archivo WAV
     Mix_Chunk* soundEffect = Mix_LoadWAV(path);
 
@@ -99,6 +102,8 @@ void loadMusic(const char* path) {
             std::cout << "Error al reproducir el efecto de sonido: " << Mix_GetError() << std::endl;
         }
     }
+
+    return soundEffect;
 }
 
 int main(int argc, char* argv[]) {
@@ -118,7 +123,65 @@ int main(int argc, char* argv[]) {
     window = SDL_CreateWindow("DOOM", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    // ImageLoader::loadImage("0", getCharFileName("assets\\Map1\\SP_DUDE1.png"));
+    Uint32 frameStart, frameTime;
+    std::string title = "FPS: ";
+
+    TTF_Init();
+    if (!loadFont()) {
+        return 1;
+    }
+
+    bool selectLevel = true;
+    bool showWelcome = true;
+    Mix_Chunk * mainTheme = loadMusic(R"(..\assets\music\menuTheme.wav)");
+    clear();
+    drawText("DooM", SCREEN_WIDTH_2 - 25 * 2, SCREEN_HEIGHT_2 - SCREEN_HEIGHT_2 * 0.30f, w);
+    drawText("-> Military Base", 150, SCREEN_HEIGHT_2, w);
+    drawText("Inferno", 150, SCREEN_HEIGHT_2 + SCREEN_HEIGHT_2 * 0.30f, w);
+    bool oldSelectLevel;
+    while (showWelcome) {
+        oldSelectLevel = selectLevel;
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                showWelcome = false;
+                break;
+            }
+            if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_UP:
+                        selectLevel = true;
+                        loadEffect(R"(..\assets\sounds\selectSound.wav)");
+                        clear();
+                        break;
+                    case SDLK_DOWN:
+                        selectLevel = false;
+                        loadEffect(R"(..\assets\sounds\selectSound.wav)");
+                        clear();
+                        break;
+                    case SDLK_RETURN:
+                        showWelcome = false;
+                        loadEffect(R"(..\assets\sounds\enterSound.wav)");
+                        break;
+                }
+                break;
+            }
+        }
+        if (oldSelectLevel != selectLevel) {
+            if (selectLevel){
+                drawText("DooM", SCREEN_WIDTH_2 - 25 * 2, SCREEN_HEIGHT_2 - SCREEN_HEIGHT_2 * 0.30f, w);
+                drawText("-> Military Base", 150, SCREEN_HEIGHT_2, w);
+                drawText("Inferno", 150, SCREEN_HEIGHT_2 + SCREEN_HEIGHT_2 * 0.30f, w);
+            } else {
+                drawText("DooM", SCREEN_WIDTH_2 - 25 * 2, SCREEN_HEIGHT_2 - SCREEN_HEIGHT_2 * 0.30f, w);
+                drawText("Military Base", 150, SCREEN_HEIGHT_2, w);
+                drawText("-> Inferno", 150, SCREEN_HEIGHT_2 + SCREEN_HEIGHT_2 * 0.30f, w);
+            }
+        }
+    }
+    Mix_FreeChunk(mainTheme);
+
+    clear();
 
     ImageLoader::loadImage("p", R"(..\assets\player\doomHand.png)");
     ImageLoader::loadImage("e1", R"(..\assets\enemies\e1.png)");
@@ -135,7 +198,7 @@ int main(int argc, char* argv[]) {
             {552, 74},
             {557, 373},
             {38, 157},
-            };
+    };
     map1.isWin = false;
     map1.end = {551, 551};
     map1.music = R"(..\assets\music\map1.wav)";
@@ -151,7 +214,7 @@ int main(int argc, char* argv[]) {
             {318, 159},
             {41, 368},
             {401, 411},
-            };
+    };
     map2.isWin = false;
     map2.end = {531, 369};
     map2.music = R"(..\assets\music\map2.wav)";
@@ -160,13 +223,17 @@ int main(int argc, char* argv[]) {
     maps.push_back(map2);
 
     int currentKey = 2;
+    if (selectLevel) {
+        currentKey = 1;
+    }
 
     Map currentMap;
 
+    Mix_Chunk* mapMusic;
     for (auto& map : maps) {
         if (map.key == currentKey) {
             currentMap = map;
-            loadMusic(currentMap.music);
+            mapMusic = loadMusic(currentMap.music);
             break;
         }
     }
@@ -189,65 +256,9 @@ int main(int argc, char* argv[]) {
 
     r.load_map(currentMap.map);
 
-    Uint32 frameStart, frameTime;
-    std::string title = "FPS: ";
-
-
-    /*
-    // using fmod
-    FMOD::System* system;
-    FMOD::Sound* music;
-    FMOD::Channel* channel;
-
-    FMOD::System_Create(&system);
-    system->init(32, FMOD_INIT_NORMAL, nullptr);
-    system->createSound(R"(..\assets\music\test.mp3)", FMOD_DEFAULT, 0, &music);
-    system->playSound(music, 0, false, &channel); */
-
-    /*
-    if (!loadFont()) {
-        return 1;
-    }
-    bool showWelcome = true;
-    while (showWelcome) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                showWelcome = false;
-                break;
-            }
-            if (event.type == SDL_KEYDOWN) {
-                showWelcome = false;
-                break;
-            }
-        }
-
-        // Dentro de este bucle, puedes renderizar elementos de bienvenida (texto, imágenes, etc.).
-        // Usar SDL_RenderCopy y SDL_RenderPresent para mostrar elementos gráficos.
-
-        // Puedes utilizar TTF_RenderText_Solid para renderizar texto con SDL_ttf.
-        SDL_Surface* textSurface = TTF_RenderText_Solid(font, "¡Bienvenido al juego!", {255, 255, 255});
-        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-
-        // Define la posición del texto en la pantalla.
-        SDL_Rect textRect;
-        textRect.x = SCREEN_WIDTH / 2 - textSurface->w / 2;
-        textRect.y = SCREEN_HEIGHT / 2 - textSurface->h / 2;
-        textRect.w = textSurface->w;
-        textRect.h = textSurface->h;
-
-        // Renderiza el texto en la pantalla.
-        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
-        SDL_RenderPresent(renderer);
-
-        // Libera los recursos de texto y textura.
-        SDL_FreeSurface(textSurface);
-        SDL_DestroyTexture(textTexture);
-
-    }
-    */
-
+    float deltaAngle = 3.14/25;
     int speed = 10;
+
     bool running = true;
     while(running) {
         frameStart = SDL_GetTicks();
@@ -260,81 +271,36 @@ int main(int argc, char* argv[]) {
                 break;
             }
             if (event.type == SDL_KEYDOWN) {
-                float newPlayerX;
-                float newPlayerY;
-                int i, j;
+                float newPlayerX = r.player.x;
+                float newPlayerY = r.player.y;
                 switch(event.key.keysym.sym ){
                     case SDLK_LEFT:
-                        r.player.a += 3.14/25;
+                        r.player.a += deltaAngle;
                         break;
                     case SDLK_RIGHT:
-                        r.player.a -= 3.14/25;
+                        r.player.a -= deltaAngle;
                         break;
                     case SDLK_UP:
-                        // Realiza el cálculo de nueva posición deseada
-                        newPlayerX = r.player.x + speed * cos(r.player.a);
-                        newPlayerY = r.player.y + speed * sin(r.player.a);
-
-                        // Convierte las coordenadas a índices de matriz
-                        i = static_cast<int>(newPlayerX / BLOCK);
-                        j = static_cast<int>(newPlayerY / BLOCK);
-
-                        // Verifica si la nueva posición colisiona con una pared en el mapa
-                        if (map[j][i] == ' ') {
-                            r.player.x = newPlayerX;
-                            r.player.y = newPlayerY;
-                        }
+                        newPlayerX += speed * cos(r.player.a);
+                        newPlayerY += speed * sin(r.player.a);
                         break;
                     case SDLK_DOWN:
-                        // Realiza el cálculo de nueva posición deseada
-                        newPlayerX = r.player.x - speed * cos(r.player.a);
-                        newPlayerY = r.player.y - speed * sin(r.player.a);
-
-                        // Convierte las coordenadas a índices de matriz
-                        i = static_cast<int>(newPlayerX / BLOCK);
-                        j = static_cast<int>(newPlayerY / BLOCK);
-
-                        // Verifica si la nueva posición colisiona con una pared en el mapa
-                        if (map[j][i] == ' ') {
-                            r.player.x = newPlayerX;
-                            r.player.y = newPlayerY;
-                        }
+                        newPlayerX -= speed * cos(r.player.a);
+                        newPlayerY -= speed * sin(r.player.a);
                         break;
                     case SDLK_a:
-                        r.player.a += 3.14/25;
+                        r.player.a += deltaAngle;
                         break;
                     case SDLK_d:
-                        r.player.a -= 3.14/25;
+                        r.player.a -= deltaAngle;
                         break;
                     case SDLK_w:
-                        // Realiza el cálculo de nueva posición deseada
-                        newPlayerX = r.player.x + speed * cos(r.player.a);
-                        newPlayerY = r.player.y + speed * sin(r.player.a);
-
-                        // Convierte las coordenadas a índices de matriz
-                        i = static_cast<int>(newPlayerX / BLOCK);
-                        j = static_cast<int>(newPlayerY / BLOCK);
-
-                        // Verifica si la nueva posición colisiona con una pared en el mapa
-                        if (map[j][i] == ' ') {
-                            r.player.x = newPlayerX;
-                            r.player.y = newPlayerY;
-                        }
+                        newPlayerX += speed * cos(r.player.a);
+                        newPlayerY += speed * sin(r.player.a);
                         break;
                     case SDLK_s:
-                        // Realiza el cálculo de nueva posición deseada
-                        newPlayerX = r.player.x - speed * cos(r.player.a);
-                        newPlayerY = r.player.y - speed * sin(r.player.a);
-
-                        // Convierte las coordenadas a índices de matriz
-                        i = static_cast<int>(newPlayerX / BLOCK);
-                        j = static_cast<int>(newPlayerY / BLOCK);
-
-                        // Verifica si la nueva posición colisiona con una pared en el mapa
-                        if (map[j][i] == ' ') {
-                            r.player.x = newPlayerX;
-                            r.player.y = newPlayerY;
-                        }
+                        newPlayerX -= speed * cos(r.player.a);
+                        newPlayerY -= speed * sin(r.player.a);
                         break;
                     case SDLK_SPACE:
                         r.player.attack = true;
@@ -360,6 +326,14 @@ int main(int argc, char* argv[]) {
                         break;
                     default:
                         break;
+                }
+
+                int i = static_cast<int>(newPlayerX / BLOCK);
+                int j = static_cast<int>(newPlayerY / BLOCK);
+
+                if (map[j][i] == ' ') {
+                    r.player.x = newPlayerX;
+                    r.player.y = newPlayerY;
                 }
             }
         }
@@ -400,6 +374,32 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    Mix_FreeChunk(mapMusic);
+
+    bool salir = true;
+    drawText("You won!", SCREEN_WIDTH_2 - 25 * 3, SCREEN_HEIGHT_2 - SCREEN_HEIGHT_2 * 0.30f, w);
+    drawText("Press ESC to exit", SCREEN_WIDTH_2 - 25 * 6, SCREEN_HEIGHT_2 - SCREEN_HEIGHT_2 * 0.20f, w);
+    Mix_Chunk * winTheme = loadMusic(R"(..\assets\music\menuTheme.wav)");
+
+    while (salir) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                salir = true;
+                break;
+            }
+            if (event.type == SDL_KEYDOWN) {
+                switch(event.key.keysym.sym ){
+                    case SDLK_ESCAPE:
+                        salir = false;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+    Mix_FreeChunk(winTheme);
     SDL_DestroyWindow(window);
     SDL_Quit();
 }

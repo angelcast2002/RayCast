@@ -4,7 +4,6 @@
 #include <stdexcept>
 #include <map>
 #include <string>
-
 #include "color.h"
 
 class ImageLoader {
@@ -36,35 +35,19 @@ public:
         }
 
         SDL_Surface* targetSurface = it->second;
+        Uint8* pixelData = static_cast<Uint8*>(targetSurface->pixels);
+
         int bpp = targetSurface->format->BytesPerPixel;
-        Uint8 *p = (Uint8 *)targetSurface->pixels + y * targetSurface->pitch + x * bpp;
+        Uint8* pixel = pixelData + y * targetSurface->pitch + x * bpp;
 
         Uint32 pixelColor;
-        switch (bpp) {
-            case 1:
-                pixelColor = *p;
-                break;
-            case 2:
-                pixelColor = *(Uint16 *)p;
-                break;
-            case 3:
-                if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
-                    pixelColor = p[0] << 16 | p[1] << 8 | p[2];
-                } else {
-                    pixelColor = p[0] | p[1] << 8 | p[2] << 16;
-                }
-                break;
-            case 4:
-                pixelColor = *(Uint32 *)p;
-                break;
-            default:
-                throw std::runtime_error("Unknown format!");
-        }
+        memcpy(&pixelColor, pixel, bpp);
 
         SDL_Color color;
         SDL_GetRGB(pixelColor, targetSurface->format, &color.r, &color.g, &color.b);
         return Color{color.r, color.g, color.b};
     }
+
 
     static void render(SDL_Renderer* renderer, const std::string& key, int x, int y, int w = -1, int h = -1) {
         auto it = imageSurfaces.find(key);
